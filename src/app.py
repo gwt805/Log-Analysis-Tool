@@ -17,7 +17,7 @@ class Fun(Mainui):
         self.setupUi()
         self.clean_result_uuid_list = []
         self.send_rcc_uuid_list = []
-        self.base_img_label = {"large_garbage": "垃圾", "garbage": "垃圾", "sewage": "脏污"}
+        self.base_img_label = {"large_garbage": "垃圾", "garbage": "垃圾", "sewage": "脏污", "mixed_garbage_temp": "固液混合"}
         self.same_list = []
         self.csv_data = {}
         self.show()
@@ -36,9 +36,9 @@ class Fun(Mainui):
             if reply.clickedButton() == yr_btn:
                 self.load_img_files()
 
-        file = QFileDialog.getOpenFileName(self, "选择 info.csv 文件", filter="Text Files (*.csv)")
+        file = QFileDialog.getExistingDirectory(self, "选择 info.csv 文件夹")
         if file is not None:
-            self.input_csv.setText(file[0])
+            self.input_csv.setText(file)
             QTimer.singleShot(1000, self.read_csv_img)
         self.listen_path()
 
@@ -52,28 +52,49 @@ class Fun(Mainui):
     def read_csv_img(self):
         data = {}
         try:
-            with open(self.input_csv.text(), 'r') as f:
-                reader = list(csv.reader(f))[1:]
+            csv_list = glob.glob(f'{self.input_csv.text()}\\**')
             img_list = glob.glob(f'{self.input_img.text()}\\**')
-            imglist = [item.split('.')[0] for dirl in img_list for item in os.listdir(dirl)]
 
-            for row in reader:
-                image_name = row[1]
-                class_name = row[2]
-                uuid = row[4]
-
-                if image_name in imglist:
-                    data[uuid] = {"img_name": image_name, "class_image": class_name}
-            self.csv_data = data
-            if self.input_log.text() == "":
-                reply = QMessageBox(QMessageBox.Question, self.tr("提示"), self.tr("info.csv 已加载完成, 请加载log文件 !"), QMessageBox.NoButton, self)
-                yr_btn = reply.addButton(self.tr("请选择 log 所在目录"), QMessageBox.YesRole)
+            if len(csv_list) == 0:
+                self.input_csv.setText("")
+                reply = QMessageBox(QMessageBox.Question, self.tr("提示"), self.tr("该目录下没有正确的 csv 文件 !"), QMessageBox.NoButton, self)
+                yr_btn = reply.addButton(self.tr("请重新选择 csv 所在目录"), QMessageBox.YesRole)
                 reply.addButton(self.tr("取消"), QMessageBox.NoRole)
                 reply.exec_()
                 if reply.clickedButton() == yr_btn:
+                    self.load_csv_file()
+            imglist = [item.split('.')[0] for dirl in img_list for item in os.listdir(dirl)]
+            
+            if len(imglist) == 0:
+                self.input_img.setText("")
+                reply = QMessageBox(QMessageBox.Question, self.tr("提示"), self.tr("该目录下没有图片 !"), QMessageBox.NoButton, self)
+                yr_btn = reply.addButton(self.tr("请重新选择 图片 所在目录"), QMessageBox.YesRole)
+                reply.addButton(self.tr("取消"), QMessageBox.NoRole)
+                reply.exec_()
+                if reply.clickedButton() == yr_btn:
+                    self.load_csv_file()
+            if len(csv_list) != 0 and len(imglist) != 0:
+                for cit in csv_list:
+                    with open(cit, 'r') as f:
+                        reader = list(csv.reader(f))[1:]
+
+                    for row in reader:
+                        image_name = row[1]
+                        class_name = row[2]
+                        uuid = row[4]
+
+                        if image_name in imglist:
+                            data[uuid] = {"img_name": image_name, "class_image": class_name}
+                    self.csv_data = data
+                if self.input_log.text() == "":
+                    reply = QMessageBox(QMessageBox.Question, self.tr("提示"), self.tr("info.csv 已加载完成, 请加载log文件 !"), QMessageBox.NoButton, self)
+                    yr_btn = reply.addButton(self.tr("请选择 log 所在目录"), QMessageBox.YesRole)
+                    reply.addButton(self.tr("取消"), QMessageBox.NoRole)
+                    reply.exec_()
+                    if reply.clickedButton() == yr_btn:
+                        self.load_log_files()
+                else:
                     self.load_log_files()
-            else:
-                self.load_log_files()
         except:
             QMessageBox.warning(self, self.tr("警告"), self.tr("是否加载了正确的 info.csv 文件 !"), QMessageBox.Ok)
 
@@ -159,7 +180,6 @@ class Fun(Mainui):
         model_2.setColumnCount(4)
         model_2.setRowCount(length_send_rcc)
         model_2.setHorizontalHeaderLabels(['UUID', '标签', '中文标签', '图片名'])
-        
         for i in range(length_send_rcc):
             tmp = self.send_rcc_uuid_list[i]
             tmp.append(self.base_img_label[tmp[-1]])

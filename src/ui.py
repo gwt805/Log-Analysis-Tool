@@ -182,7 +182,7 @@ class Mainui(QtWidgets.QMainWindow):
         _translate = QtCore.QCoreApplication.translate
         LogAnalysisTool.setWindowTitle(_translate("LogAnalysisTool", "MainWindow"))
         self.label_log.setText(_translate("LogAnalysisTool", "Log 目录："))
-        self.label_csv.setText(_translate("LogAnalysisTool", "CSV 文件："))
+        self.label_csv.setText(_translate("LogAnalysisTool", "CSV 目录："))
         self.label_img.setText(_translate("LogAnalysisTool", "图片目录："))
         self.label.setText(_translate("LogAnalysisTool", "结果保存目录："))
         self.pushButton.setText(_translate("LogAnalysisTool", "保存结果"))
@@ -193,6 +193,6 @@ class Mainui(QtWidgets.QMainWindow):
         self.action_Log.setText(_translate("LogAnalysisTool", "打开 Log 所在目录"))
         self.action_Log.setShortcut(_translate("LogAnalysisTool", "Ctrl+O"))
         self.action.setText(_translate("LogAnalysisTool", "设置结果保存目录"))
-        self.action.setShortcut(_translate("LogAnalysisTool", "Ctrl+S"))
-        self.action_CSV.setText(_translate("LogAnalysisTool", "打开CSV文件"))
-        self.action_3.setText(_translate("LogAnalysisTool", "打开图片目录"))
+        # self.action.setShortcut(_translate("LogAnalysisTool", "Ctrl+S"))
+        self.action_CSV.setText(_translate("LogAnalysisTool", "打开 CSV 所在目录"))
+        self.action_3.setText(_translate("LogAnalysisTool", "打开 图片 所在目录"))
