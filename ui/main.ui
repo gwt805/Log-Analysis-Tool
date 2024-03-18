@@ -43,6 +43,40 @@
          </widget>
         </item>
         <item>
+         <widget class="QLabel" name="label_csv">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>CSV 文件：</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="input_csv">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_img">
+          <property name="text">
+           <string>图片目录：</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="input_img">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="label">
           <property name="text">
            <string>结果保存目录：</string>
@@ -179,6 +213,8 @@
     </property>
     <addaction name="action_Log"/>
     <addaction name="action"/>
+    <addaction name="action_CSV"/>
+    <addaction name="action_3"/>
    </widget>
    <addaction name="menu"/>
   </widget>
@@ -196,6 +232,16 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="action_CSV">
+   <property name="text">
+    <string>打开CSV文件</string>
+   </property>
+  </action>
+  <action name="action_3">
+   <property name="text">
+    <string>打开图片目录</string>
    </property>
   </action>
  </widget>
