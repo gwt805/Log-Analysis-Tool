@@ -3,6 +3,7 @@ import sys
 import csv
 import glob
 import json
+import time
 import openpyxl
 from ui import Mainui
 from datetime import datetime
@@ -23,6 +24,7 @@ class Fun(Mainui):
         self.base_img_label = {"large_garbage": "垃圾", "garbage": "垃圾", "sewage": "脏污", "mixed_garbage_temp": "固液混合"}
         self.csv_data = {}
         self.logfiles = []
+        self.table_head = ['UUID', '标签', '中文标签', '图片名', '时间']
 
         self.statusLabel = QLabel("clean_result: 0 个 || send_rcc:0 个")
         self.statusBar().addPermanentWidget(self.statusLabel)
@@ -36,6 +38,9 @@ class Fun(Mainui):
     
     def get_datetime(self):
         return datetime.now()
+
+    def timestamp_to_datetime(self, timestamp:str):
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(timestamp) / 1000))
 
     def get_log_file_path(self):
         reply = QMessageBox(QMessageBox.Information, self.tr("提示"), self.tr("请先填写时间范围 !"), QMessageBox.NoButton, self)
@@ -81,48 +86,57 @@ class Fun(Mainui):
         self.listen_path()
     
     def read_csv_img(self):
-        data = {}
+        try:
+            data = {}
 
-        csv_list = glob.glob(f'{self.input_csv.text()}\\**.csv')
-        img_list = glob.glob(f'{self.input_img.text()}\\**')
+            csv_list = glob.glob(f'{self.input_csv.text()}\\**.csv')
+            img_list = glob.glob(f'{self.input_img.text()}\\**')
+            
+            imglist = [item.split('.')[0] for dirl in img_list for item in os.listdir(dirl)]
+            
+            if len(imglist) == 0:
+                self.input_img.setText("")
+                reply = QMessageBox(QMessageBox.Warning, self.tr("警告"), self.tr("该目录下没有图片 !"), QMessageBox.NoButton, self)
+                yr_btn = reply.addButton(self.tr("重新选择 图片 所在目录"), QMessageBox.YesRole)
+                reply.addButton(self.tr("取消"), QMessageBox.NoRole)
+                reply.exec_()
+                if reply.clickedButton() == yr_btn:
+                    self.load_csv_file()
 
-        imglist = [item.split('.')[0] for dirl in img_list for item in os.listdir(dirl)]
-        
-        if len(imglist) == 0:
-            self.input_img.setText("")
-            reply = QMessageBox(QMessageBox.Warning, self.tr("警告"), self.tr("该目录下没有图片 !"), QMessageBox.NoButton, self)
-            yr_btn = reply.addButton(self.tr("重新选择 图片 所在目录"), QMessageBox.YesRole)
+            if len(csv_list) == 0:
+                self.input_csv.setText("")
+                reply = QMessageBox(QMessageBox.Warning, self.tr("警告"), self.tr("该目录下没有正确的 csv 文件 !"), QMessageBox.NoButton, self)
+                yr_btn = reply.addButton(self.tr("重新选择 csv 所在目录"), QMessageBox.YesRole)
+                reply.exec_()
+                if reply.clickedButton() == yr_btn:
+                    self.load_log_files()
+
+            if len(csv_list) != 0 and len(imglist) != 0:
+                for cit in csv_list:
+                    self.show_message(f"正在加读取 {cit} 文件")
+                    with open(cit, 'r', errors="ignore") as f:
+                        reader = list(csv.reader(f))[1:]
+
+                    for row in reader:
+                        image_name = row[1]
+                        class_name = row[2]
+                        uuid = row[4]
+
+                        if image_name in imglist:
+                            data[uuid] = {"img_name": image_name, "class_name": class_name}
+                self.csv_data = data
+                
+                self.show_message(f"csv 文件 和 图片 已读取完成")
+                self.read_log_file()
+        except BaseException as be:
+            reply = QMessageBox(QMessageBox.Warning, self.tr("警告"), self.tr(str(be)), QMessageBox.NoButton, self)
+            yr_btn = reply.addButton(self.tr("好的"), QMessageBox.YesRole)
             reply.addButton(self.tr("取消"), QMessageBox.NoRole)
             reply.exec_()
             if reply.clickedButton() == yr_btn:
-                self.load_csv_file()
-
-        if len(csv_list) == 0:
-            self.input_csv.setText("")
-            reply = QMessageBox(QMessageBox.Warning, self.tr("警告"), self.tr("该目录下没有正确的 csv 文件 !"), QMessageBox.NoButton, self)
-            yr_btn = reply.addButton(self.tr("重新选择 csv 所在目录"), QMessageBox.YesRole)
-            reply.exec_()
-            if reply.clickedButton() == yr_btn:
-                self.load_log_files()
-
-        if len(csv_list) != 0 and len(imglist) != 0:
-            for cit in csv_list:
-                self.show_message(f"正在加读取 {cit} 文件")
-                with open(cit, 'r', errors="ignore") as f:
-                    reader = list(csv.reader(f))[1:]
-
-                for row in reader:
-                    image_name = row[1]
-                    class_name = row[2]
-                    uuid = row[4]
-
-                    if image_name in imglist:
-                        data[uuid] = {"img_name": image_name, "class_name": class_name}
-            self.csv_data = data
-            
-            self.show_message(f"csv 文件 和 图片 已读取完成")
-            self.read_log_file()
-
+                self.remove_data()
+            else:
+                self.remove_data()
     def load_log_files(self):
         if self.input_img.text() == "":
             reply = QMessageBox(QMessageBox.Question, self.tr("提示"), self.tr("请加载 图片 所在目录 !"), QMessageBox.NoButton, self)
@@ -193,28 +207,32 @@ class Fun(Mainui):
     def create_table(self):
         length_clean_result = len(self.clean_result_uuid_list)
         model = QStandardItemModel(self.tableView)
-        model.setHorizontalHeaderLabels(['UUID', '标签', '中文标签', '图片名'])
-        model.setColumnCount(4)
+        model.setHorizontalHeaderLabels(self.table_head)
+        model.setColumnCount(5)
         model.setRowCount(length_clean_result)
         for i in range(length_clean_result):
             item1 = QStandardItem(self.clean_result_uuid_list[i])
             if self.clean_result_uuid_list[i] in self.csv_data:
                 tmp_dict = edict(self.csv_data[self.clean_result_uuid_list[i]])
-                self.clean_result_uuid_list[i] = [self.clean_result_uuid_list[i], tmp_dict.class_name, self.base_img_label[tmp_dict.class_name], tmp_dict.img_name]
+                self.clean_result_uuid_list[i] = [self.clean_result_uuid_list[i], tmp_dict.class_name, self.base_img_label[tmp_dict.class_name], tmp_dict.img_name, self.timestamp_to_datetime(tmp_dict.img_name)]
                 item2 = QStandardItem(tmp_dict.class_name)
                 item3 = QStandardItem(self.base_img_label[tmp_dict.class_name])
                 item4 = QStandardItem(tmp_dict.img_name)
+                item5 = QStandardItem(self.timestamp_to_datetime(tmp_dict.img_name))
             else:
-                self.clean_result_uuid_list[i] = (self.clean_result_uuid_list[i], "", "", "")
+                self.clean_result_uuid_list[i] = (self.clean_result_uuid_list[i], "", "", "", "")
                 item2 = QStandardItem("")
                 item3 = QStandardItem("")
                 item4 = QStandardItem("")
+                item5 = QStandardItem("")
             model.setItem(i, 0, item1)
             model.setItem(i, 1, item2)
             model.setItem(i, 2, item3)
             model.setItem(i, 3, item4)
+            model.setItem(i, 4, item5)
         self.tableView.setModel(model)
         self.tableView.setColumnWidth(0, 300)
+        self.tableView.setColumnWidth(4, 130)
         self.tableView.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableView.show()
 
@@ -224,7 +242,7 @@ class Fun(Mainui):
         model_2 = QStandardItemModel(self.tableView_1)
         model_2.setColumnCount(4)
         model_2.setRowCount(length_send_rcc)
-        model_2.setHorizontalHeaderLabels(['UUID', '标签', '中文标签', '图片名'])
+        model_2.setHorizontalHeaderLabels(self.table_head)
         for i in range(length_send_rcc):
             tmp = self.send_rcc_uuid_list[i]
             tmp.append(self.base_img_label[tmp[1]])
@@ -234,10 +252,14 @@ class Fun(Mainui):
             item3 = QStandardItem(tmp[2])
             if tmp[0] in self.csv_data:
                 tmp.append(self.csv_data[tmp[0]]['img_name'])
+                tmp.append(self.timestamp_to_datetime(self.csv_data[tmp[0]]['img_name']))
                 item4 = QStandardItem(self.csv_data[tmp[0]]['img_name'])
+                item5 = QStandardItem(self.timestamp_to_datetime(self.csv_data[tmp[0]]['img_name']))
             else:
                 tmp.append("")
+                tmp.append("")
                 item4 = QStandardItem("")
+                item5 = QStandardItem("")
 
             self.send_rcc_uuid_list[i] = tmp
 
@@ -245,8 +267,10 @@ class Fun(Mainui):
             model_2.setItem(i, 1, item2)
             model_2.setItem(i, 2, item3)
             model_2.setItem(i, 3, item4)
+            model_2.setItem(i, 4, item5)
         self.tableView_1.setModel(model_2)
         self.tableView_1.setColumnWidth(0, 300)
+        self.tableView_1.setColumnWidth(4, 130)
         self.tableView_1.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.tableView_1.show()
 
@@ -254,7 +278,7 @@ class Fun(Mainui):
         self.statusBar().showMessage(msg)
     
     def show_label(self):
-        self.statusLabel.setText(f"clean_result:{len(self.clean_result_uuid_list)} 个 || send_rcc: {len(self.send_rcc_uuid_list)} 个")
+        self.statusLabel.setText(f"已清扫:{len(self.clean_result_uuid_list)} 个 || 已上报: {len(self.send_rcc_uuid_list)} 个")
 
     def listen_path(self):
         log_dir = self.input_log.text()
@@ -279,31 +303,36 @@ class Fun(Mainui):
             workbook = openpyxl.Workbook()
 
             sheet = workbook.active
-            sheet.title = "send rcc"
+            sheet.title = "已清扫"
 
-            sheet['A1'] = "UUID"
-            sheet['B1'] = "标签"
-            sheet['C1'] = "中文标签"
-            sheet['D1'] = "图片名"
+            sheet['A1'] = self.table_head[0]
+            sheet['B1'] = self.table_head[1]
+            sheet['C1'] = self.table_head[2]
+            sheet['D1'] = self.table_head[3]
+            sheet['E1'] = self.table_head[4]
 
             sheet.column_dimensions['A'].width = 40
             sheet.column_dimensions['B'].width = 15
             sheet.column_dimensions['D'].width = 15
+            sheet.column_dimensions['E'].width = 20
 
-            for it in self.send_rcc_uuid_list:
+            for it in self.clean_result_uuid_list:
                 sheet.append(it)
 
-            sheet2 = workbook.create_sheet("clean result")
-            sheet2['A1'] = "UUID"
-            sheet2['B1'] = "标签"
-            sheet2['C1'] = "中文标签"
-            sheet2['D1'] = "图片名"
+            sheet2 = workbook.create_sheet("已上报")
+            sheet2['A1'] = self.table_head[0]
+            sheet2['B1'] = self.table_head[1]
+            sheet2['C1'] = self.table_head[2]
+            sheet2['D1'] = self.table_head[3]
+            sheet2['E1'] = self.table_head[4]
 
             sheet2.column_dimensions['A'].width = 40
             sheet2.column_dimensions['B'].width = 15
             sheet2.column_dimensions['D'].width = 15
+            sheet2.column_dimensions['E'].width =20
+            
 
-            for it in self.clean_result_uuid_list:
+            for it in self.send_rcc_uuid_list:
                 sheet2.append(it)
 
             try:
