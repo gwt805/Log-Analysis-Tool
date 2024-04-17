@@ -4,19 +4,20 @@ import csv
 import glob
 import json
 import time
+import shutil
 import openpyxl
 from ui import Mainui
 from datetime import datetime
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, QStringListModel
 from easydict import EasyDict as edict
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QMessageBox, QAbstractItemView
-
+from PyQt5.QtWidgets import QApplication, QFileDialog, QMessageBox, QAbstractItemView
 
 class Fun(Mainui):
     def __init__(self):
         super().__init__()
         self.setupUi()
+        
         self.input_dt_start.setDateTime(self.get_datetime())
         self.input_dt_end.setDateTime(self.get_datetime())
         self.clean_result_uuid_list = []
@@ -26,16 +27,23 @@ class Fun(Mainui):
         self.logfiles = []
         self.table_head = ['UUID', '标签', '中文标签', '图片名', '时间']
 
-        self.statusLabel = QLabel("clean_result: 0 个 || send_rcc:0 个")
-        self.statusBar().addPermanentWidget(self.statusLabel)
+        # self.statusLabel = QLabel("") # 已清扫: 0 个 || 已上报: 0 个
+        # self.statusBar().addPermanentWidget(self.statusLabel)
 
         self.show()
 
-        self.action_log.triggered.connect(self.get_log_file_path)
-        self.action_result.triggered.connect(self.get_save_result_path)
+        # tab1 -> process log
+        self.btn_log.clicked.connect(self.get_log_file_path) # load : log -> img -> csv
+        self.btn_site_save.clicked.connect(self.get_save_result_path)
         self.btn_save.clicked.connect(self.save_result_file)
-        self.btn_clean.clicked.connect(self.remove_data)
-    
+        #tab2 -> find and move info.csv
+        self.btn_file.clicked.connect(self.tab2_get_info_csv_path)
+        self.btn_save_2.clicked.connect(self.tab2_set_info_csv_save_path)
+        self.btn_move.clicked.connect(self.tab2_find_and_move_info_csv)
+        # tat changed
+        self.tabWidget.currentChanged.connect(self.tab_change)
+
+    #----------------------------------------------Process Log----------------------------------------------------------------------
     def get_datetime(self):
         return datetime.now()
 
@@ -137,6 +145,7 @@ class Fun(Mainui):
                 self.remove_data()
             else:
                 self.remove_data()
+
     def load_log_files(self):
         if self.input_img.text() == "":
             reply = QMessageBox(QMessageBox.Question, self.tr("提示"), self.tr("请加载 图片 所在目录 !"), QMessageBox.NoButton, self)
@@ -354,7 +363,7 @@ class Fun(Mainui):
         self.send_rcc_uuid_list = []
         self.csv_data = {}
         self.logfiles = []
-        self.statusLabel.setText("clean_result: 0 个 || send_rcc:0 个")
+        self.statusLabel.setText("已清扫: 0 个 || 已上报:0 个")
         model = QStandardItemModel(self.tableView)
         model1 = QStandardItemModel(self.tableView_1)
         model.clear()
@@ -364,6 +373,71 @@ class Fun(Mainui):
         self.tableView_1.setModel(model1)
         self.tableView_1.show()
         self.btn_save.setDisabled(True)
+
+    #----------------------------------------------Find and move info.csv----------------------------------------------------------------------
+    def tab2_get_info_csv_path(self):
+        path = QFileDialog.getExistingDirectory(self, "选择所有 info.csv 所在目录")
+        if path != "":
+            self.input_file.setText(path)
+        else:
+            self.tab2_remove_data()
+
+    def tab2_set_info_csv_save_path(self):
+        path = QFileDialog.getExistingDirectory(self, "选择 info.csv 保存目录")
+        if path != "":
+            self.input_save.setText(path)
+
+    def tab2_find_and_move_info_csv(self):
+        if self.input_file.text() == "":
+            reply = QMessageBox(QMessageBox.Information, self.tr("提示"), self.tr("请先填写所有 info.csv 所在目录 !"), QMessageBox.NoButton, self)
+            yr_btn = reply.addButton(self.tr("好的"), QMessageBox.YesRole)
+            reply.addButton(self.tr("取消"), QMessageBox.NoRole)
+            reply.exec_()
+            if reply.clickedButton() == yr_btn:
+                self.tab2_get_info_csv_path()
+        elif self.input_save.text() == "":
+            reply = QMessageBox(QMessageBox.Information, self.tr("提示"), self.tr("请先填写 info.csv 保存目录 !"), QMessageBox.NoButton, self)
+            yr_btn = reply.addButton(self.tr("好的"), QMessageBox.YesRole)
+            reply.addButton(self.tr("取消"), QMessageBox.NoRole)
+            reply.exec_()
+            if reply.clickedButton() == yr_btn:
+                self.tab2_set_info_csv_save_path()
+        else:
+            self.btn_file.setDisabled(True)
+            garbage_csv = [it for it in [os.sep.join([self.input_file.text(), dit, "garbage_sewage_mtl", "project_node", "garbage_instance_seg_proj_tracking", "info.csv"]) for dit in os.listdir(self.input_file.text())] if os.path.exists(it)]
+            sewage_csv = [it for it in [os.sep.join([self.input_file.text(), dit, "garbage_sewage_mtl", "project_node", "sewage_semantic_seg_proj_tracking", "info.csv"]) for dit in os.listdir(self.input_file.text())] if os.path.exists(it)]
+            info_csv_list = garbage_csv + sewage_csv
+            
+            slm = QStringListModel()
+            slm.setStringList(info_csv_list)
+            self.listView.setModel(slm)
+
+            self.statusLabel.setText(f"共找到 {len(info_csv_list)} 个 info.csv 文件 !")
+
+            if info_csv_list:
+                index = 1
+                for it in info_csv_list:
+                    shutil.copy(it, os.path.join(self.input_save.text(), f"info{index}.csv"))
+                    index += 1
+
+                reply = QMessageBox(QMessageBox.Information, self.tr("提示"), self.tr(f"{len(info_csv_list)} 个 info.csv 文件已拷贝到该目录下 !"), QMessageBox.NoButton, self)
+                yr_btn = reply.addButton(self.tr("确定"), QMessageBox.YesRole)
+                reply.exec_()
+            else:
+                reply = QMessageBox(QMessageBox.Warning, self.tr("警告"), self.tr("该目录下没有 info.csv 文件 !"), QMessageBox.NoButton, self)
+                yr_btn = reply.addButton(self.tr("确定"), QMessageBox.YesRole)
+                reply.exec_()
+
+            self.btn_file.setDisabled(False)
+    
+    def tab2_remove_data(self):
+        self.input_file.setText("")
+        self.input_save.setText("")
+
+    #----------------------------------------------tab changed----------------------------------------------------------------------
+    def tab_change(self):
+        self.statusLabel.setText("")
+        self.show_message("")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
