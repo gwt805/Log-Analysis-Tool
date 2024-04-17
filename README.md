@@ -3,7 +3,12 @@
     <img src="./demo/demo.jpg">
 </div>
 
-# Build whl
+# Used
 ```
-python setup.py bdist_wheel
+> python setup.py sdist bdist_wheel
+> pip install dist/xxx.whl
+
+or
+
+> python log_analysis_tool/app.py
 ```

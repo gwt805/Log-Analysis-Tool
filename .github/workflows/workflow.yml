@@ -5,19 +5,19 @@
 name: Upload Python Package log_analysis_tool
 
 on:
-  # 当master分支有push时，触发action
-  #push: 
+  # 当main分支有push时，触发action
+  # push: 
   #  branches:
-  #    - master
+  #    - main
   
   # 当一个pr被合并到main时，触发action
-  pull_request:
-    branches:
-      - main
+  # pull_request:
+  #   branches:
+  #     - main
   
   # 当发布时，触发action
-  #release:
-  #  types: [created]
+  release:
+   types: [created]
 
 jobs:
   deploy:
@@ -45,7 +45,7 @@ jobs:
     # 构建和发布
     - name: Build and publish
       env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
       run: |
         python setup.py sdist bdist_wheel
