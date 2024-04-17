@@ -6,7 +6,7 @@ import json
 import time
 import shutil
 import openpyxl
-from src.ui import Mainui
+from log_analysis_tool.ui import Mainui
 from datetime import datetime
 from PyQt5.QtCore import QTimer, QStringListModel
 from easydict import EasyDict as edict
