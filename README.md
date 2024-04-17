@@ -2,3 +2,8 @@
 <div align='center'>
     <img src="./demo/demo.jpg">
 </div>
+
+# Build whl
+```
+python setup.py bdist_wheel
+```
