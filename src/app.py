@@ -6,7 +6,7 @@ import json
 import time
 import shutil
 import openpyxl
-from ui import Mainui
+from src.ui import Mainui
 from datetime import datetime
 from PyQt5.QtCore import QTimer, QStringListModel
 from easydict import EasyDict as edict
@@ -439,7 +439,10 @@ class Fun(Mainui):
         self.statusLabel.setText("")
         self.show_message("")
 
-if __name__ == "__main__":
+def main():
     app = QApplication(sys.argv)
     fun = Fun()
     sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()
